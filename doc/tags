@@ -1,0 +1,5 @@
+Clean	cleantab.txt	/*Clean*
+cleantab	cleantab.txt	/*cleantab*
+cleantab-commands	cleantab.txt	/*cleantab-commands*
+cleantab-contents	cleantab.txt	/*cleantab-contents*
+cleantab.vim	cleantab.txt	/*cleantab.vim*

@@ -1,0 +1,28 @@
+*cleantab.vim*    Vim lib which add Clean command in order to clean unordered tabline
+                                                                    *cleantab*
+License:     GPL (see http://www.gnu.org/licenses/gpl.txt)
+Author(s):   luffah (luffah AT runbox com)
+Revision:    1
+Last Change: 2026-05-17
+==============================================================================
+CONTENTS                                                   *cleantab-contents*
+
+1. Commands                                                |cleantab-commands|
+
+==============================================================================
+COMMANDS                                                   *cleantab-commands*
+
+*Clean* <opts> <patterns>
+    Clean tabs (and then tabline)..
+      Options are in shell style:
+       -h help
+       <X  >X  to target tabs between strict min and max
+       -b close buffers matching patterns
+       -e close unammed buffers
+       -t close tabs matching patterns [default if none provided]
+       -d close double tabs [default if none provided]
+       -s sort tabs
+       -a all above
+       -A all tabs
+
+vim:tw=78:ts=8:ft=help:norl:
