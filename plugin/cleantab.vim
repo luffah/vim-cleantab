@@ -12,6 +12,9 @@
 "    <X  >X  to target tabs between strict min and max
 "    -b close buffers matching patterns
 "    -e close unammed buffers
+"    -E empty buffers
+"    -H hidden buffers
+"    -u unlisted buffers
 "    -t close tabs matching patterns [default if none provided]
 "    -d close double tabs [default if none provided]
 "    -s sort tabs
@@ -23,8 +26,14 @@ func! s:Clean(...)
     let l:tabcloseall=0
     let l:dtabclose=0
     let l:sorttab=0
+    let l:sorttab_by_path=0
+    let l:sorttab_by_name=0
+    let l:sorttab_by_ft=0
     let l:rmbuff=0
     let l:closeunammedbuffers=0
+    let l:closeemptybuffers=0
+    let l:wipeouthiddenbuffers=0
+    let l:wipeoutunlistedbuffers=0
     let l:opts=''
     let l:args=[]
     let l:max_idx=tabpagenr('$') + 1
@@ -47,12 +56,15 @@ func! s:Clean(...)
     if l:opts == ''
         let l:opts = 'td'
     endif
-    if l:opts =~ 'h'
+    if l:opts =~# 'h'
         unsilent echo "Clean <opts> <patterns>"
         unsilent echo " -h this help"
         unsilent echo " <X  >X  to target tabs between strict min and max"
         unsilent echo " -b close buffers matching patterns"
         unsilent echo " -e close unammed buffers"
+        unsilent echo " -E close empty buffers"
+        unsilent echo " -H wipeout hidden buffers"
+        unsilent echo " -u wipeout unlisted buffers"
         unsilent echo " -t close tabs matching patterns [default if none provided]"
         unsilent echo " -d close double tabs [default if none provided]"
         unsilent echo " -s sort tabs"
@@ -61,31 +73,40 @@ func! s:Clean(...)
         return
     endif
     let l:nopat=(len(l:args) == 0)
-    if l:opts =~ 'e'
+    if l:opts =~# 'H'
+        let l:wipeouthiddenbuffers=1
+    endif
+    if l:opts =~# 'u'
+        let l:wipeoutunlistedbuffers=1
+    endif
+    if l:opts =~# 'E'
+        let l:closeemptybuffers=1
+    endif
+    if l:opts =~# 'e'
         let l:closeunammedbuffers=1
     endif
-    if l:opts =~ 'b'
+    if l:opts =~# 'b'
         let l:rmbuff=1
     endif
-    if l:opts =~ 't'
+    if l:opts =~# 't'
         let l:tabclose=1
     endif
-    if l:opts =~ 's'
+    if l:opts =~# 's'
         let l:sorttab=1
-        if l:opts =~ 'sp'
+        if l:opts =~# 'sp'
             let l:sorttab_by_path=1
         endif
-        if l:opts =~ 'sn'
+        if l:opts =~# 'sn'
             let l:sorttab_by_name=1
         endif
-        if l:opts =~ 'st'
+        if l:opts =~# 'st'
             let l:sorttab_by_ft=1
         endif
     endif
-    if l:opts =~ 'd'
+    if l:opts =~# 'd'
         let l:dtabclose=1
     endif
-    if l:opts  =~ 'a'
+    if l:opts  =~# 'a'
         let l:tabclose=1
         let l:rmbuff=1
         let l:sorttab=1
@@ -106,7 +127,7 @@ func! s:Clean(...)
         endif
         if l:rmbuff
             for l:a in l:args
-                call s:CloseBuffers(l:a)
+                call s:CloseBuffers('bufname(l:i) =~ "'.escape(a:pattern, '"').'"')
             endfor
         endif
     endif
@@ -115,7 +136,19 @@ func! s:Clean(...)
 exe l:curtab.'tabnext'
 
 if l:closeunammedbuffers
-    call s:CloseBuffers('^$')
+    call s:CloseBuffers("bufname(l:i) =~ '^$'")
+endif
+
+if l:closeemptybuffers
+    call s:CloseBuffers("(empty(getbufinfo(l:i)) || (getbufinfo(l:i)[0]['lnum'] == 1 && getbufline(l:i,'$') == ['']))")
+endif
+
+if l:wipeouthiddenbuffers
+    call s:CloseBuffers("(!empty(getbufinfo(l:i)) && (getbufinfo(l:i)[0]['hidden'] == 1))", 'bwipeout')
+endif
+
+if l:wipeoutunlistedbuffers
+    call s:CloseBuffers("(!empty(getbufinfo(l:i)) && (getbufinfo(l:i)[0]['listed'] == 0))", 'bwipeout')
 endif
 
 if l:dtabclose
@@ -160,13 +193,13 @@ func! s:CleanDoubleTabs()
     endfor
 endfu
 
-func! s:CloseBuffers(pattern)
+func! s:CloseBuffers(expr, ...)
+    let l:op = get(a:000, 0, 'bd')
     let l:t = tabpagenr()
     for l:i in range(1, bufnr('$'))
         if bufexists(l:i) && buflisted(l:i)
-            let l:file = bufname(l:i)
-            if l:file =~ a:pattern
-                exe l:i.'bd'
+            if eval(a:expr)
+                exe l:i.l:op
             endif
         endif
     endfor

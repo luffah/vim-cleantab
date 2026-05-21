@@ -19,6 +19,7 @@ COMMANDS                                                   *cleantab-commands*
        <X  >X  to target tabs between strict min and max
        -b close buffers matching patterns
        -e close unammed buffers
+       -E close empty buffers
        -t close tabs matching patterns [default if none provided]
        -d close double tabs [default if none provided]
        -s sort tabs
