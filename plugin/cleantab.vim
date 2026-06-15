@@ -10,13 +10,14 @@
 "   Options are in shell style:
 "    -h help
 "    <X  >X  to target tabs between strict min and max
+"    ! to invert patterns (close all except current if no pattern)
 "    -b close buffers matching patterns
 "    -e close unammed buffers
-"    -E empty buffers
-"    -H hidden buffers
-"    -u unlisted buffers
-"    -t close tabs matching patterns [default if none provided]
-"    -d close double tabs [default if none provided]
+"    -E close empty buffers
+"    -H wipeout hidden buffers
+"    -u wipeout unlisted buffers
+"    -t close tabs matching patterns [default if no other option]
+"    -d close double tabs [default if no other option]
 "    -s sort tabs
 "    -a all above
 "    -A all tabs
@@ -60,13 +61,14 @@ func! s:Clean(...)
         unsilent echo "Clean <opts> <patterns>"
         unsilent echo " -h this help"
         unsilent echo " <X  >X  to target tabs between strict min and max"
+        unsilent echo " ! to invert the patterns"
         unsilent echo " -b close buffers matching patterns"
         unsilent echo " -e close unammed buffers"
         unsilent echo " -E close empty buffers"
         unsilent echo " -H wipeout hidden buffers"
         unsilent echo " -u wipeout unlisted buffers"
-        unsilent echo " -t close tabs matching patterns [default if none provided]"
-        unsilent echo " -d close double tabs [default if none provided]"
+        unsilent echo " -t close tabs matching patterns [default if no other option]"
+        unsilent echo " -d close double tabs [default if no other option]"
         unsilent echo " -s sort tabs"
         unsilent echo " -a all above"
         unsilent echo " -A all tabs"
@@ -117,55 +119,68 @@ func! s:Clean(...)
         let l:tabcloseall=1
     endif
 
+    let l:tests_to_close = []
+    let l:invert=0
+    for l:a in l:args
+        if l:a == '!'
+            let l:invert = 1
+            if len(l:args) == 1
+                call add(l:tests_to_close, 'l:i != ' . bufnr())
+            endif
+            continue
+        endif
+        call add(l:tests_to_close, 'bufname(l:i) '.( l:invert ? '!' : '=' ).'~ "'.escape(l:a, '"').'"')
+    endfor
     if l:nopat
         if (l:tabcloseall || (l:tabclose && l:idx_focus))
-            tabdo call s:MarkTabToClose(l:min_idx, l:max_idx, [])
+           call s:MarkTabToClose(l:min_idx, l:max_idx, [])
         endif
     else
-        if l:tabclose
-            tabdo call s:MarkTabToClose(l:min_idx, l:max_idx, l:args)
-        endif
         if l:rmbuff
-            for l:a in l:args
-                call s:CloseBuffers('bufname(l:i) =~ "'.escape(a:pattern, '"').'"')
-            endfor
+            call s:CloseBuffers(l:tests_to_close)
+        endif
+        if l:tabclose
+           call s:MarkTabToClose(l:min_idx, l:max_idx, l:tests_to_close)
         endif
     endif
 
-    tabdo if get(t:, 'tab_to_close', 0) | tabclose | endif
-exe l:curtab.'tabnext'
+    for l:nr in range(tabpagenr('$'),1,-1)
+        if gettabvar(l:nr, 'tab_to_close', 0)
+            exe l:nr.'tabclose'
+        endif
+    endfor
 
-if l:closeunammedbuffers
-    call s:CloseBuffers("bufname(l:i) =~ '^$'")
-endif
-
-if l:closeemptybuffers
-    call s:CloseBuffers("(empty(getbufinfo(l:i)) || (getbufinfo(l:i)[0]['lnum'] == 1 && getbufline(l:i,'$') == ['']))")
-endif
-
-if l:wipeouthiddenbuffers
-    call s:CloseBuffers("(!empty(getbufinfo(l:i)) && (getbufinfo(l:i)[0]['hidden'] == 1))", 'bwipeout')
-endif
-
-if l:wipeoutunlistedbuffers
-    call s:CloseBuffers("(!empty(getbufinfo(l:i)) && (getbufinfo(l:i)[0]['listed'] == 0))", 'bwipeout')
-endif
-
-if l:dtabclose
-    call s:CleanDoubleTabs()
-endif
-
-if l:sorttab
-    if l:sorttab_by_path
-        call s:SortTabs('%:p')
-    elseif l:sorttab_by_name
-        call s:SortTabs('%:t')
-    elseif l:sorttab_by_ft
-        call s:SortTabs('%:e', '%:t')
-    else
-        call s:SortTabs('%:e', '%:t', '%:p')
+    if l:closeunammedbuffers
+        call s:CloseBuffers(["bufname(l:i) =~ '^$'"])
     endif
-endif
+
+    if l:closeemptybuffers
+        call s:CloseBuffers(["(empty(getbufinfo(l:i)) || (getbufinfo(l:i)[0]['lnum'] == 1 && getbufline(l:i,'$') == ['']))"])
+    endif
+
+    if l:wipeouthiddenbuffers
+        call s:CloseBuffers(["(!empty(getbufinfo(l:i)) && (getbufinfo(l:i)[0]['hidden'] == 1))"], 'bwipeout')
+    endif
+
+    if l:wipeoutunlistedbuffers
+        call s:CloseBuffers(["(!empty(getbufinfo(l:i)) && (getbufinfo(l:i)[0]['listed'] == 0))"], 'bwipeout')
+    endif
+
+    if l:dtabclose
+        call s:CleanDoubleTabs()
+    endif
+
+    if l:sorttab
+        if l:sorttab_by_path
+            call s:SortTabs('%:p')
+        elseif l:sorttab_by_name
+            call s:SortTabs('%:t')
+        elseif l:sorttab_by_ft
+            call s:SortTabs('%:e', '%:t')
+        else
+            call s:SortTabs('%:e', '%:t', '%:p')
+        endif
+    endif
 
 endfu
 
@@ -193,33 +208,44 @@ func! s:CleanDoubleTabs()
     endfor
 endfu
 
-func! s:CloseBuffers(expr, ...)
+func! s:CloseBuffers(tests, ...)
     let l:op = get(a:000, 0, 'bd')
-    let l:t = tabpagenr()
     for l:i in range(1, bufnr('$'))
         if bufexists(l:i) && buflisted(l:i)
-            if eval(a:expr)
-                exe l:i.l:op
-            endif
+            for l:test in a:tests
+                if eval(l:test)
+                    exe l:i.l:op
+                endif
+            endfor
         endif
     endfor
 endfu
 
-func! s:MarkTabToClose(min, max, patterns)
+func! s:MarkTabToClose(min, max, tests)
     let l:to_close=0
-    let l:nr=tabpagenr()
-    if ((l:nr < a:max) && (l:nr > a:min))
-        if len(a:patterns) > 0
-            for l:pat in a:patterns
-                if bufname() =~ l:pat
-                    let t:tab_to_close = 1
-                    break
-                endif
-            endfor
-        else
-            let t:tab_to_close=1
+    for l:nr in range(1, tabpagenr('$'))
+        let l:ok = 1
+        for l:i in tabpagebuflist(l:nr)
+            if ((l:nr < a:max) && (l:nr > a:min))
+                let l:any = 0
+                for l:test in a:tests
+                    if eval(l:test)
+                        let l:any = 1
+                        break
+                    endif
+                endfor
+            else
+                let l:any = 1
+            endif
+            if ! l:any
+                let l:ok = 0
+                break
+            endif
+        endfor
+        if l:ok
+            call settabvar(l:nr, 'tab_to_close', 1)
         endif
-    endif
+    endfor
 endfu
 
 func! s:SortTabs(...)

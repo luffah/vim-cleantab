@@ -17,11 +17,14 @@ COMMANDS                                                   *cleantab-commands*
       Options are in shell style:
        -h help
        <X  >X  to target tabs between strict min and max
+       ! to invert patterns (close all except current if no pattern)
        -b close buffers matching patterns
        -e close unammed buffers
        -E close empty buffers
-       -t close tabs matching patterns [default if none provided]
-       -d close double tabs [default if none provided]
+       -H wipeout hidden buffers
+       -u wipeout unlisted buffers
+       -t close tabs matching patterns [default if no other option]
+       -d close double tabs [default if no other option]
        -s sort tabs
        -a all above
        -A all tabs
