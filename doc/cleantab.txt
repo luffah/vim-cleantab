@@ -3,11 +3,12 @@
 License:     GPL (see http://www.gnu.org/licenses/gpl.txt)
 Author(s):   luffah (luffah AT runbox com)
 Revision:    1
-Last Change: 2026-05-17
+Last Change: 2026-06-30
 ==============================================================================
 CONTENTS                                                   *cleantab-contents*
 
 1. Commands                                                |cleantab-commands|
+2. Globals                                                  |cleantab-globals|
 
 ==============================================================================
 COMMANDS                                                   *cleantab-commands*
@@ -28,5 +29,19 @@ COMMANDS                                                   *cleantab-commands*
        -s sort tabs
        -a all above
        -A all tabs
+
+
+==============================================================================
+GLOBALS                                                     *cleantab-globals*
+
+*g:cleantab_sort_grouping_variables*
+    (list of dict) Buffer variables to use when sorting tabs
+    [ {'name': <varname>, 'type': <'buffer'(default) or 'tab'>,
+      'default': <default_value> (default: 0), 'expected': <expected_value>',
+      'position': <'before'(default) or 'after'> } ]
+    default is : [{'name':'use', 'expected': 1}]
+    meaning if `let b:use = 1` is defined on a buffer then put it before other
+    tabs grouping with other buffers having b:use = 1
+    If many groups apply then the last take priority.
 
 vim:tw=78:ts=8:ft=help:norl:

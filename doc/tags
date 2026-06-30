@@ -2,4 +2,6 @@ Clean	cleantab.txt	/*Clean*
 cleantab	cleantab.txt	/*cleantab*
 cleantab-commands	cleantab.txt	/*cleantab-commands*
 cleantab-contents	cleantab.txt	/*cleantab-contents*
+cleantab-globals	cleantab.txt	/*cleantab-globals*
 cleantab.vim	cleantab.txt	/*cleantab.vim*
+g:cleantab_sort_grouping_variables	cleantab.txt	/*g:cleantab_sort_grouping_variables*

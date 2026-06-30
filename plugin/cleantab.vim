@@ -2,8 +2,22 @@
 " @Author:      luffah (luffah AT runbox com)
 " @License:     GPL (see http://www.gnu.org/licenses/gpl.txt)
 " @Created:     2026-05-17
-" @Last Change: 2026-05-17
+" @Last Change: 2026-06-30
 " @Revision:    1
+
+
+"@global g:cleantab_sort_grouping_variables
+"(list of dict) Buffer variables to use when sorting tabs
+"[ {'name': <varname>, 'type': <'buffer'(default) or 'tab'>,
+"   'default': <default_value> (default: 0), 'expected': <expected_value>',
+"   'position': <'before'(default) or 'after'> } ]
+"default is : [{'name':'use', 'expected': 1}]
+"meaning if `let b:use = 1` is defined on a buffer then put it before other
+"tabs grouping with other buffers having b:use = 1
+"If many groups apply then the last take priority.
+let g:cleantab_sort_grouping_variables = get(g:,'cleantab_sort_grouping_variables',
+            \ [{'name':'use', 'expected': 1}]
+            \)
 
 "@command Clean <opts> <patterns>
 "Clean tabs (and then tabline)..
@@ -248,19 +262,48 @@ func! s:MarkTabToClose(min, max, tests)
     endfor
 endfu
 
+func! s:sortTabsExpandName(mods)
+    let l:res = []
+    for l:m in a:mods
+        let l:part = expand(l:m)
+        if l:m == '%:t'
+            if l:part =~ '^\d\+\(\.[a-z]\{1,4\}\)\?$'
+                let l:path = expand('%:p')
+                if l:path =~ '/.*/'
+                    let l:part = split(l:path, '/')[-2] .'/'. l:part
+                endif
+            endif
+        endif
+        call add(l:res, l:part)
+    endfor
+    return l:res
+endfu
+
 func! s:SortTabs(...)
     let l:curbuf = bufnr()
+    let l:curwin = win_getid()
     let l:cache_buf = {}
-    for l:i in range(tabpagenr('$'),1,-1)
+    1tabnext
+    for l:i in range(1, tabpagenr('$'))
         let l:i1 = bufnr()
         if ! has_key(l:cache_buf, l:i1)
-            let l:cache_buf[l:i1] = join(map(copy(a:000), 'expand(v:val)'), ',')
+            let l:cache_buf[l:i1] = join(s:sortTabsExpandName(a:000), '!')
+            for l:var in g:cleantab_sort_grouping_variables
+                if get(l:var, 'position', 'before') == 'after'
+                    let l:group_char = nr2char(0xffff)
+                else
+                    let l:group_char = nr2char(0x0001)
+                endif
+                if get(get(l:var, 'type', 'buffer') == 'tab' ? t: : b:, l:var['name'], get(l:var, 'default', 0)) == l:var['expected']
+                    let l:cache_buf[l:i1] = l:group_char.l:var['name'].'!'.l:cache_buf[l:i1]
+                endif
+            endfor
         endif
         tabnext
     endfor
     for l:i in range(tabpagenr('$'),1,-1)
         tabfirst
-        for l:j in range(1,l:i-1)
+        for l:j in range(1,l:i)
             let l:t1 = l:cache_buf[bufnr()]
             tabnext
             let l:t2 = l:cache_buf[bufnr()]
@@ -271,5 +314,5 @@ func! s:SortTabs(...)
             endif
         endfor
     endfor
-    exe 'GoToBuffer '.l:curbuf
+    call win_gotoid(l:curwin)
 endfun
